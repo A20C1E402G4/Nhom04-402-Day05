@@ -1,3 +1,4 @@
+
 ---
 
 # SPEC — AI Product Hackathon: VinFast Smart Sales Agent (VSSA)
