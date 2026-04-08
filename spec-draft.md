@@ -1,10 +1,19 @@
 
 ---
 
-# SPEC — AI Product Hackathon: VinFast Smart Sales Agent (VSSA)
+# GROUP SPEC: AI Product Hackathon - VinFast Smart Sales Agent (VSSA)
 
-**Nhóm:** VinSales AI-Powered  
-**Track:** ☑ VinFast  
+- **Team Name**: Nhóm 04
+- **Team Members**: 
+- ***1***. Trần Nhật Vĩ (phần 1‑3)
+- ***2***. Trần Thanh Phong (phần 4‑6)
+- ***3***. Nguyễn Tiến Huy Hoàng (phần 1‑3)
+- ***4***. Hoàng Đinh Duy Anh (phần 4‑6)
+- **Deployment Date**: 2026-04-08 
+
+---
+
+**Track:** ☑ VinFast
 **Problem statement (1 câu):** Khách hàng mua xe điện thường bị "ngợp" bởi thông số kỹ thuật, bài toán chi phí thuê pin và các gói vay; VSSA là Agent thông minh giúp cá nhân hóa tư vấn 24/7, tự động lập phương án tài chính và chốt lịch lái thử trong 1 phút.
 
 ---
