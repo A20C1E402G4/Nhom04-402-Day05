@@ -44,97 +44,61 @@ def tool_find_charging_stations(origin: str, destination: str):
 tools = [tool_get_vehicle_data, tool_calculate_loan, tool_find_charging_stations, tool_calculate_tco, tool_book_test_drive]
 tool_node = ToolNode(tools)
 
-# Cấu hình Model (Mặc định dùng Gemini 1.5 Flash qua OpenAI interface nếu có API Key)
-# Hoặc bạn có thể đổi sang model khác tùy ý
-model = ChatOpenAI(model="gemini-1.5-flash", temperature=0).bind_tools(tools)
+# --- Khởi tạo Agent (Lazy Loading) ---
+_vssa_agent = None
 
-# Định nghĩa Trạng thái (State)
-class AgentState(TypedDict):
-    messages: Annotated[List[BaseMessage], add_messages]
-
-# Logic của Agent
-def call_model(state: AgentState):
-    messages = state['messages']
-    response = model.invoke(messages)
-    return {"messages": [response]}
-
-def should_continue(state: AgentState):
-    messages = state['messages']
-    last_message = messages[-1]
-    if last_message.tool_calls:
-        return "continue"
-    return "end"
-
-# Node ghi log Signal (Data Flywheel)
-def log_signal(state: AgentState):
-    messages = state['messages']
-    last_user_message = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
-    last_ai_response = next((m.content for m in reversed(messages) if isinstance(m, AIMessage)), "")
+def get_agent():
+    global _vssa_agent
+    if _vssa_agent is not None:
+        return _vssa_agent
     
-    # Logic đơn giản để phân loại Signal
-    signal = "NEUTRAL"
-    if any(word in last_user_message.lower() for word in ["sai", "nhầm", "không đúng", "tính lại"]):
-        signal = "USER_CORRECTION"
-    elif any(word in last_user_message.lower() for word in ["cảm ơn", "tốt", "hay quá", "ưng"]):
-        signal = "POSITIVE_FEEDBACK"
-    
-    # Ghi vào file signals.log
-    log_entry = {
-        "user_query": last_user_message,
-        "ai_response": last_ai_response,
-        "signal": signal
-    }
-    
-    log_path = os.path.join(os.path.dirname(__file__), "data", "signals.log")
-    with open(log_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
-        
-    return state
-
-# Xây dựng Graph
-workflow = StateGraph(AgentState)
-
-workflow.add_node("agent", call_model)
-workflow.add_node("action", tool_node)
-workflow.add_node("logger", log_signal)
-
-workflow.set_entry_point("agent")
-workflow.add_conditional_edges(
-    "agent",
-    should_continue,
-    {
-        "continue": "action",
-        "end": "logger"
-    }
-)
-workflow.add_edge("action", "agent")
-workflow.add_edge("logger", END)
-
-# Compile Agent
-vssa_agent = workflow.compile()
-
-# System Prompt chuyên nghiệp
-SYSTEM_PROMPT = """Bạn là VinFast Smart Sales Agent (VSSA) - Chuyên gia tư vấn xe điện VinFast.
-Nhiệm vụ của bạn:
-1. Tư vấn dòng xe phù hợp dựa trên ngân sách và nhu cầu (số chỗ ngồi, loại xe).
-2. Lập phương án tài chính chi tiết khi khách có nhu cầu vay vốn.
-3. So sánh chi phí (TCO) giữa xe điện và xe xăng để thuyết phục khách hàng "Sống Xanh".
-4. Chỉ đường, tìm trạm sạc và đặt lịch lái thử tại Showroom.
-
-Phong cách: Chuyên nghiệp, lịch sự, luôn hỗ trợ khách hàng hết mình. 
-Nếu khách đang rất quan tâm đến một mẫu xe, hãy chủ động mời họ sử dụng `tool_book_test_drive` để trải nghiệm thực tế.
-
-Nếu thông tin khách hỏi nằm ngoài hiểu biết (như thông tin chi tiết nội thất xe cụ thể mà tool không trả về), hãy báo: "Thông tin này tôi chưa rõ. Hãy trao đổi với saler để được tư vấn kỹ hơn"."""
-
-def get_response(user_input: str, chat_history: List[BaseMessage] = []):
     # Kiểm tra API Key
     if not os.getenv("OPENAI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
-        # Trả về phản hồi mock cho mục đích Demo
-        return f"[MOCK DEMO] Xin chào! Tôi hiện đang chạy ở chế độ Demo (không có API Key). \n\nBạn vừa hỏi: '{user_input}'\n\nTrong thực tế, tôi sẽ sử dụng LangGraph và Tools để tìm chiếc xe VinFast (như VF 3, VF 7,...) hoặc tính toán gói trả góp tiết kiệm nhất cho bạn. Hãy bổ sung API Key vào file .env để trải nghiệm sức mạnh thực sự của tôi nhé!"
+        return None  # Không có key thì không khởi tạo
+    
+    # Cấu hình Model
+    try:
+        model = ChatOpenAI(model="gemini-1.5-flash", temperature=0).bind_tools(tools)
+        
+        # Xây dựng Graph
+        workflow = StateGraph(AgentState)
+        workflow.add_node("agent", lambda state: {"messages": [model.invoke(state['messages'])]})
+        workflow.add_node("action", tool_node)
+        workflow.add_node("logger", log_signal)
+
+        workflow.set_entry_point("agent")
+        workflow.add_conditional_edges(
+            "agent",
+            should_continue,
+            {
+                "continue": "action",
+                "end": "logger"
+            }
+        )
+        workflow.add_edge("action", "agent")
+        workflow.add_edge("logger", END)
+        
+        _vssa_agent = workflow.compile()
+        return _vssa_agent
+    except Exception as e:
+        print(f"Lỗi khởi tạo Agent: {e}")
+        return None
+
+# --- Logic chính ---
+
+def get_response(user_input: str, chat_history: List[BaseMessage] = []):
+    agent = get_agent()
+    
+    if agent is None:
+        # Chế độ Mock Demo khi không có API Key
+        return f"[MOCK DEMO] Chào bạn! Tôi đang chạy ở chế độ Demo (thiếu API Key).\n\nBạn vừa hỏi: '{user_input}'\n\nKhi có API Key, tôi sẽ sử dụng LangGraph để truy vấn dữ liệu xe VinFast, tính toán TCO và đặt lịch lái thử cho bạn một cách chuyên nghiệp!"
     
     initial_messages = [SystemMessage(content=SYSTEM_PROMPT)] + chat_history + [HumanMessage(content=user_input)]
-    output = vssa_agent.invoke({"messages": initial_messages})
-    return output['messages'][-1].content
+    try:
+        output = agent.invoke({"messages": initial_messages})
+        return output['messages'][-1].content
+    except Exception as e:
+        return f"Lỗi khi thực thi Agent: {e}"
 
 if __name__ == "__main__":
     # Test nhanh
