@@ -13,7 +13,9 @@ from langgraph.graph.message import add_messages
 # Import tools từ file đã viết
 from tools.car_tools import get_vehicle_data, calculate_loan_plan, find_charging_stations, calculate_tco_comparison, book_test_drive
 
-load_dotenv()
+# Load environment variables từ file .env cùng thư mục với agent.py
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
 
 # Định nghĩa Tools cho Agent
 @tool
