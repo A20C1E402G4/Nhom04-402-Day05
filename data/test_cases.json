@@ -1,0 +1,25 @@
+[
+  {
+    "test_id": "TC_01_HAPPY_PATH",
+    "user_query": "Tôi có 800 triệu, nhà 4 người, ở chung cư, nên mua xe nào?",
+    "expected_intent": "vehicle_consulting",
+    "expected_tool_calls": [
+      "get_vehicle_data",
+      "calculate_loan"
+    ]
+  },
+  {
+    "test_id": "TC_02_GREEN_ROUTE",
+    "user_query": "Tôi đi làm từ Quận 9 sang Quận 1 mỗi ngày, cuối tuần hay về quê ở Vũng Tàu thì có trạm sạc không?",
+    "expected_intent": "route_planning",
+    "expected_tool_calls": [
+      "find_charging_stations"
+    ]
+  },
+  {
+    "test_id": "TC_03_LOW_CONFIDENCE",
+    "user_query": "Xe VF 8 ghế lái có bọc da Nappa giống xe Đức không?",
+    "expected_intent": "out_of_knowledge_base",
+    "expected_behavior": "graceful_degradation_fallback"
+  }
+]

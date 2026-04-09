@@ -1,0 +1,36 @@
+{
+  "banking_partners": {
+    "vietcombank": {
+      "bank_name": "Vietcombank",
+      "interest_rate_percent_per_year": 8.5,
+      "max_loan_percentage": 80,
+      "max_duration_months": 96
+    },
+    "techcombank": {
+      "bank_name": "Techcombank",
+      "interest_rate_percent_per_year": 9.0,
+      "max_loan_percentage": 85,
+      "max_duration_months": 84
+    },
+    "shinhan": {
+      "bank_name": "Shinhan Bank",
+      "interest_rate_percent_per_year": 6.8,
+      "max_loan_percentage": 70,
+      "max_duration_months": 60
+    }
+  },
+  "current_promotions": [
+    {
+      "promo_code": "VF7_FREE_CHARGE_1YR",
+      "applicable_models": ["VF7", "VF8"],
+      "discount_amount_vnd": 0,
+      "description": "Miễn phí sạc pin tại trạm công cộng trong 1 năm"
+    },
+    {
+      "promo_code": "VIN_MEMBERSHIP_10M",
+      "applicable_models": ["ALL"],
+      "discount_amount_vnd": 10000000,
+      "description": "Tặng 10 triệu đồng cho khách hàng là thành viên VinClub"
+    }
+  ]
+}
