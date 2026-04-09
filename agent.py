@@ -46,6 +46,55 @@ def tool_find_charging_stations(origin: str, destination: str):
 tools = [tool_get_vehicle_data, tool_calculate_loan, tool_find_charging_stations, tool_calculate_tco, tool_book_test_drive]
 tool_node = ToolNode(tools)
 
+# --- Định nghĩa State và Logic ---
+
+class AgentState(TypedDict):
+    messages: Annotated[List[BaseMessage], add_messages]
+
+def should_continue(state: AgentState):
+    messages = state['messages']
+    last_message = messages[-1]
+    if last_message.tool_calls:
+        return "continue"
+    return "end"
+
+def log_signal(state: AgentState):
+    """Ghi lại tín hiệu từ khách hàng để đưa vào Data Flywheel."""
+    last_message = state['messages'][-1]
+    user_msg = next((m.content for m in reversed(state['messages']) if isinstance(m, HumanMessage)), "")
+    
+    signal_data = {
+        "user_query": user_msg,
+        "ai_response_snippet": last_message.content[:100] if last_message.content else "",
+        "has_tool_calls": len(last_message.tool_calls) > 0 if hasattr(last_message, 'tool_calls') else False
+    }
+    
+    log_dir = os.path.join(os.path.dirname(__file__), "data")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+        
+    with open(os.path.join(log_dir, "signals.log"), "a", encoding="utf-8") as f:
+        f.write(json.dumps(signal_data, ensure_ascii=False) + "\n")
+    return state
+
+SYSTEM_PROMPT = """Bạn là VSSA (VinFast Smart Sales Agent) - chuyên gia tư vấn xe điện VinFast chuyên nghiệp, lịch sự và am hiểu sâu sắc.
+
+Nhiệm vụ của bạn:
+1. Tư vấn các dòng xe VinFast (VF3, VF5, VF6, VF7, VF8, VF9) dựa trên nhu cầu khách hàng.
+2. Sử dụng công cụ 'tool_get_vehicle_data' để lấy thông tin chính xác về xe. KHÔNG tự bịa số liệu.
+3. Hỗ trợ tính toán trả góp qua 'tool_calculate_loan'. Tư vấn các ngân hàng như Vietcombank, Techcombank, VPBank.
+4. So sánh chi phí vận hành (TCO) giữa xe điện và xe xăng qua 'tool_calculate_tco' để thuyết phục khách hàng chuyển đổi sang xe xanh.
+5. Hỗ trợ tìm lộ trình và trạm sạc qua 'tool_find_charging_stations'.
+6. Chốt lịch lái thử qua 'tool_book_test_drive'.
+
+Phong cách trả lời:
+- Luôn thân thiện, gọi khách hàng là 'Anh/Chị' hoặc 'Bạn'.
+- Trình bày thông tin rõ ràng bằng các gạch đầu dòng hoặc bảng biểu nếu cần.
+- Luôn hướng tới kết thúc là mời khách hàng để lại thông tin hoặc đặt lịch lái thử.
+
+Nếu khách hàng hỏi về các hãng xe khác, hãy khéo léo so sánh lợi thế về hạ tầng trạm sạc và chi phí bảo trì cực thấp của VinFast tại Việt Nam.
+"""
+
 # --- Khởi tạo Agent (Lazy Loading) ---
 _vssa_agent = None
 
